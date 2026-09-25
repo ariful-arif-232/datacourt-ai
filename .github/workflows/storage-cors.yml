@@ -1,0 +1,72 @@
+name: Bucket CORS
+
+# Sets the private bucket's CORS rule for browser uploads through the S3-compatible API
+# (PutBucketCors): the exact app origins; GET, PUT and HEAD; the Content-Type request header; ETag
+# exposed. It is the only rule for those origins; rules for other origins are kept. B2 refuses
+# PutBucketCors while the bucket has rules set through its Native API (the web console's presets
+# are); the same rule is then written with the Native API's b2_update_bucket. Uses the same B2
+# secrets as the worker. Only the bucket's CORS rules change (never its ACL, policy, type or
+# objects), so it stays private and every request still needs a presigned URL. The run then sends
+# the preflight requests browsers send and fails unless the bucket accepts them. Output names
+# origins, methods and outcomes only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      origins:
+        description: Exact app origins browsers upload from, separated by spaces (https, no trailing slash)
+        type: string
+        default: https://datacourt-ai.vercel.app
+      dry_run:
+        description: Only show the current and planned rules and test the preflights; change nothing
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bucket-cors
+  cancel-in-progress: false
+
+jobs:
+  cors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: services/api
+    env:
+      STORAGE_BACKEND: s3
+      S3_ENDPOINT_URL: ${{ secrets.S3_ENDPOINT_URL }}
+      S3_REGION: ${{ secrets.S3_REGION }}
+      S3_BUCKET: ${{ secrets.S3_BUCKET }}
+      S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+      S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+      ORIGINS: ${{ inputs.origins }}
+      DRY_RUN: ${{ inputs.dry_run }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: services/api
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/api/pyproject.toml
+      - run: pip install --disable-pip-version-check .
+      - name: Set the bucket CORS rule
+        run: |
+          for name in S3_ENDPOINT_URL S3_REGION S3_BUCKET S3_ACCESS_KEY_ID S3_SECRET_ACCESS_KEY; do
+            if [ -z "${!name}" ]; then echo "::error::repository secret $name is not set"; exit 1; fi
+          done
+          read -ra origins <<< "${ORIGINS//,/ }"
+          if [ "${#origins[@]}" -eq 0 ]; then echo "::error::give at least one origin"; exit 1; fi
+          args=()
+          for origin in "${origins[@]}"; do
+            case "$origin" in https://*) ;; *) echo "::error::origins must start with https://"; exit 1;; esac
+            args+=(--origin "$origin")
+          done
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          datacourt-storage-cors "${args[@]}"

@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv*/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+# Wheel builds (setuptools' staging copy of the package)
+services/api/build/
+dist/
+.coverage
+htmlcov/
+
+# Local data (never commit datasets, objects or model weights)
+.data/
+*.zip
+*.npz
+*.pt
+*.pth
+*.onnx
+*.safetensors
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

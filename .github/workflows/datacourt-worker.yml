@@ -1,0 +1,121 @@
+name: DataCourt worker
+
+# Batch worker for DataCourt jobs: ingestion, audits, what-if experiments, exports, reports and
+# storage purges. The API (on Vercel) starts a run with workflow_dispatch when it queues work; a
+# schedule is the safety net for anything left behind. Each run applies pending migrations,
+# drains the job queue in Postgres (Neon) and exits. Parallel runs are bounded by slots: one
+# concurrency group per slot, so extra dispatches wait or coalesce instead of piling up.
+#
+# This repository is public, so run logs are public: the worker runs with PUBLIC_LOGS=true and
+# writes ids, job types, counts and timings only; never names, paths, messages or credentials.
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: What to do
+        type: choice
+        options: [drain, maintenance, seed-demo]
+        default: drain
+      slot:
+        description: Worker slot (1..WORKER_MAX_PARALLEL); set by the API
+        type: string
+        default: "1"
+      job_id:
+        description: Job this run was started for (claimed first); set by the API
+        type: string
+        default: ""
+      reason:
+        description: Why this run was started; set by the API
+        type: string
+        default: manual
+  schedule:
+    - cron: "17 */6 * * *"
+
+permissions:
+  contents: read
+  actions: write # a run that uses up its time budget with work left starts its successor
+
+concurrency:
+  group: datacourt-worker-${{ inputs.slot || 'scheduled' }}
+  cancel-in-progress: false
+
+jobs:
+  work:
+    name: ${{ inputs.task || 'scheduled' }} · slot ${{ inputs.slot || 'scheduled' }} · ${{ inputs.reason || 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    defaults:
+      run:
+        working-directory: services/api
+    env:
+      ENVIRONMENT: production
+      DATACOURT_ROLE: worker
+      EXECUTION_BACKEND: none
+      PUBLIC_LOGS: "true"
+      STORAGE_BACKEND: s3
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      S3_ENDPOINT_URL: ${{ secrets.S3_ENDPOINT_URL }}
+      S3_REGION: ${{ secrets.S3_REGION }}
+      S3_BUCKET: ${{ secrets.S3_BUCKET }}
+      S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+      S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+      # The run's own token, only used to start a successor run when work is left over.
+      DATACOURT_GITHUB_TOKEN: ${{ github.token }}
+      DATACOURT_GITHUB_REPO: ${{ github.repository }}
+      DATACOURT_GITHUB_REF: ${{ github.ref_name }}
+      DATACOURT_WORKER_SLOT: ${{ inputs.slot || '1' }}
+      TASK: ${{ inputs.task || 'scheduled' }}
+      PREFER_JOB: ${{ inputs.job_id }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: services/api
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/api/pyproject.toml
+
+      - name: Check configuration
+        run: |
+          missing=""
+          for v in DATABASE_URL S3_ENDPOINT_URL S3_REGION S3_BUCKET S3_ACCESS_KEY_ID S3_SECRET_ACCESS_KEY; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing (Settings > Secrets and variables > Actions)"
+            exit 1
+          fi
+          case "$DATACOURT_WORKER_SLOT" in ''|*[!0-9]*) echo "::error::invalid slot input"; exit 1;; esac
+          case "$PREFER_JOB" in *[!0-9a-f-]*) echo "::error::invalid job_id input"; exit 1;; esac
+
+      - name: Install DataCourt (core)
+        run: pip install --disable-pip-version-check .
+
+      - name: Apply database migrations
+        run: alembic upgrade head
+
+      - name: Check the job queue
+        id: queue
+        run: python -m datacourt.worker --task check
+
+      - name: Maintenance (retention, abandoned uploads)
+        if: env.TASK == 'maintenance' || env.TASK == 'scheduled'
+        run: python -m datacourt.worker --task maintenance
+
+      - name: Install the ML stack
+        if: steps.queue.outputs.has_work == 'true' || env.TASK == 'seed-demo'
+        run: pip install --disable-pip-version-check ".[ml]"
+
+      - name: Seed the demo workspace
+        if: env.TASK == 'seed-demo'
+        run: python -m datacourt.worker --task seed-demo
+
+      - name: Drain the job queue
+        if: steps.queue.outputs.has_work == 'true' && (env.TASK == 'drain' || env.TASK == 'scheduled')
+        run: |
+          python -m datacourt.worker --drain --max-seconds 18000 --idle-seconds 120 \
+            ${PREFER_JOB:+--prefer-job "$PREFER_JOB"}

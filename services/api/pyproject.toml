@@ -1,0 +1,110 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "datacourt"
+version = "0.1.0"
+description = "DataCourt AI — evidence-driven dataset forensics for image classification"
+requires-python = ">=3.11"
+# Core = what the API needs. This is all Vercel installs for the serverless API, so it must stay
+# light: the numerical stack lives in the `ml` extra, installed only by the worker (GitHub Actions).
+dependencies = [
+  "fastapi>=0.115",
+  "sqlalchemy>=2.0.30",
+  "psycopg[binary]>=3.2",
+  "alembic>=1.13",
+  "pydantic>=2.7",
+  "pydantic-settings>=2.3",
+  "email-validator>=2.1",
+  "python-multipart>=0.0.9",
+  "numpy>=1.26",
+  "boto3>=1.34",
+  "httpx>=0.27",
+  "jinja2>=3.1",
+]
+
+[project.optional-dependencies]
+ml = [
+  "scipy>=1.13",
+  "scikit-learn>=1.5",
+  "opencv-python-headless>=4.10,<5",
+  "pillow>=10.4",
+  # HEIC/HEIF (iPhone photos): libheif with its HEVC decoder, bundled in the wheels.
+  "pillow-heif>=1.1,<2",
+  "faiss-cpu>=1.8",
+]
+server = ["uvicorn[standard]>=0.30"]
+deep = ["torch>=2.3", "transformers>=4.44"]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6", "mypy>=1.11", "moto[server]>=5"]
+
+[project.scripts]
+datacourt-worker = "datacourt.worker:main"
+datacourt-benchmark = "datacourt.benchmark.run:main"
+datacourt-ci = "datacourt.ci_client:main"
+datacourt-storage-check = "datacourt.storage_check:main"
+datacourt-storage-cors = "datacourt.storage_cors:main"
+datacourt-ingest-check = "datacourt.ingest_check:main"
+
+# Vercel (FastAPI runtime) entrypoint when services/api is deployed on its own.
+[tool.vercel]
+entrypoint = "datacourt.main:app"
+
+[tool.setuptools.packages.find]
+include = ["datacourt*"]
+
+[tool.setuptools.package-data]
+datacourt = ["reports/templates/*.html", "migrations/*.ini", "migrations/**/*.py", "migrations/*.mako"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "SIM"]
+ignore = ["S101", "S311", "B008", "E501", "S608", "UP042"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "B"]
+"datacourt/migrations/*" = ["E", "I", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+follow_imports = "silent"
+warn_unused_ignores = true
+# Type-checked in CI: security-, tenancy- and decision-critical modules. Numerical modules rely
+# on NumPy/OpenCV stubs that are too loose to be useful and are covered by tests instead.
+files = [
+  "datacourt/security.py",
+  "datacourt/storage.py",
+  "datacourt/sample_objects.py",
+  "datacourt/execution.py",
+  "datacourt/jobs.py",
+  "datacourt/storage_check.py",
+  "datacourt/storage_cors.py",
+  "datacourt/ingest_check.py",
+  "datacourt/ingest/images.py",
+  "datacourt/services/purge.py",
+  "datacourt/ingest/queue.py",
+  "datacourt/ledger.py",
+  "datacourt/tenancy.py",
+  "datacourt/config.py",
+  "datacourt/worker.py",
+  "datacourt/api/deps.py",
+  "datacourt/ingest/zip_safety.py",
+  "datacourt/ingest/layout.py",
+  "datacourt/ci_client.py",
+  "datacourt/services/retention.py",
+  "datacourt/services/budget.py",
+  "datacourt/services/review.py",
+  "datacourt/ml/governance.py",
+  "datacourt/ml/jury.py",
+  "datacourt/pipeline/config.py",
+  "datacourt/registry.py",
+  "datacourt/services/explain.py",
+]

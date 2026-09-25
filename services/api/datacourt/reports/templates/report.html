@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ r.title }} — {{ r.dataset.name }} v{{ r.dataset.version }}</title>
+<style>
+  :root { --ink:#15171a; --muted:#5b6270; --line:#e3e5e8; --bg:#fbfaf7; --accent:#2f4a7a; --ok:#276749; --warn:#9a6a00; --bad:#a3262a; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font: 14px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 900px; margin: 0 auto; padding: 48px 32px 80px; }
+  h1 { font: 600 30px/1.2 Georgia, "Times New Roman", serif; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font: 600 19px/1.3 Georgia, serif; margin: 40px 0 10px; padding-top: 16px; border-top: 1px solid var(--line); }
+  h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 20px 0 6px; }
+  .sub { color: var(--muted); margin-bottom: 24px; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; word-break: break-all; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; }
+  .kpi { border: 1px solid var(--line); background: #fff; padding: 12px; border-radius: 6px; }
+  .kpi b { display:block; font-size: 22px; font-weight: 600; }
+  .kpi span { color: var(--muted); font-size: 12px; }
+  .pill { display:inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; border:1px solid currentColor; }
+  .LOW,.READY,.pass { color: var(--ok); } .MODERATE,.READY_WITH_WARNINGS,.warn { color: var(--warn); }
+  .HIGH,.CRITICAL,.BLOCKED,.block { color: var(--bad); }
+  .note { color: var(--muted); font-size: 12px; }
+  .strip { display:flex; gap:2px; height: 18px; margin: 6px 0; }
+  .strip i { flex:1; background: var(--accent); border-radius: 2px; }
+  ul.lim li { margin-bottom: 6px; }
+  @media print { body { background:#fff; } main { padding: 0; } h2 { break-after: avoid; } .kpi { break-inside: avoid; } }
+  @media (max-width: 640px) { .kpis { grid-template-columns: repeat(2, 1fr); } main { padding: 24px 16px; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="note">DataCourt AI · {{ r.subtitle }}</div>
+  <h1>{{ r.title }}</h1>
+  <div class="sub">{{ r.dataset.name }} · version {{ r.dataset.version }} · generated {{ r.generated_at }}</div>
+
+  <div class="kpis">
+    <div class="kpi"><b>{{ r.facts.sample_count }}</b><span>images · {{ r.facts.class_count }} classes</span></div>
+    <div class="kpi"><b class="{{ r.debt_live.overall }}">{{ r.debt_live.overall }}</b><span>Dataset Debt (current)</span></div>
+    <div class="kpi"><b class="{{ r.preflight.status if r.preflight else '' }}">{{ (r.preflight.status if r.preflight else 'n/a')|replace('_',' ') }}</b><span>Preflight</span></div>
+    <div class="kpi"><b>{{ r.facts.case_count }}</b><span>cases · {{ r.facts.unresolved_cases }} unresolved</span></div>
+  </div>
+
+  <h2>1. Dataset & provenance</h2>
+  <table>
+    <tr><th>Project</th><td>{{ r.dataset.project }}</td></tr>
+    <tr><th>Source file</th><td>{{ r.dataset.source_filename }} (uploaded {{ r.dataset.uploaded }}, origin: {{ r.dataset.origin }})</td></tr>
+    <tr><th>Source SHA-256</th><td class="mono">{{ r.dataset.source_sha256 }}</td></tr>
+    <tr><th>Manifest SHA-256</th><td class="mono">{{ r.dataset.manifest_sha256 }}</td></tr>
+    <tr><th>Provenance</th><td>{% if r.dataset.provenance %}{% for k, v in r.dataset.provenance.items() %}{{ k }}: {{ v }}{% if not loop.last %}; {% endif %}{% endfor %}{% else %}<span class="note">No dataset-level provenance recorded.</span>{% endif %}
+      <div class="note">Per-sample provenance coverage: {{ (r.facts.provenance_coverage * 100)|round(1) }}%</div></td></tr>
+    {% if r.dna %}<tr><th>Dataset DNA</th><td class="mono">{{ r.dna.fingerprint }}<div class="strip">{% for b in r.dna.strip %}<i style="opacity: {{ 0.15 + 0.85 * b }}"></i>{% endfor %}</div><div class="note">Descriptive profile for version comparison — not a cryptographic identity.</div></td></tr>{% endif %}
+  </table>
+  <h3>Classes and splits</h3>
+  <table>
+    <tr><th>Class</th>{% for sp in r.facts.splits_present %}<th>{{ sp }}</th>{% endfor %}<th>Total</th></tr>
+    {% for cls, sp in r.stats.class_split_counts.items() %}
+    <tr><td>{{ cls }}</td>{% for s in r.facts.splits_present %}<td>{{ sp.get(s, 0) }}</td>{% endfor %}<td>{{ r.stats.class_counts.get(cls, 0) }}</td></tr>
+    {% endfor %}
+  </table>
+  <p class="note">Imbalance ratio {{ r.facts.imbalance_ratio }} · {{ r.facts.rejected_files }} file(s) rejected at ingestion · formats {{ r.stats.formats }}</p>
+
+  <h2>2. Methodology & versions</h2>
+  <table>{% for k, v in r.methodology %}<tr><th>{{ k }}</th><td>{{ v }}</td></tr>{% endfor %}
+    <tr><th>Audit profile</th><td>{{ r.audit.profile }} · finished {{ r.audit.finished }}</td></tr>
+    {% if r.audit.embedding %}<tr><th>Embedding model</th><td>{{ r.audit.embedding.model }} {{ r.audit.embedding.version }} ({{ r.audit.embedding.dim }}-d, {{ r.audit.embedding.preprocessing }})</td></tr>{% endif %}
+    <tr><th>Configuration</th><td class="mono">{{ r.audit.config_version }} · sha256 {{ r.audit.config_hash }}</td></tr>
+    <tr><th>Algorithm versions</th><td class="mono">{% for k, v in r.audit.algorithm_versions.items() %}{{ k }}={{ v }} {% endfor %}</td></tr>
+  </table>
+  {% if r.audit.warnings %}<p class="note">Warnings: {{ r.audit.warnings|join('; ') }}</p>{% endif %}
+
+  <h2>3. Findings</h2>
+  <h3>Quality (potential issues)</h3>
+  <p>{{ r.quality.get('findings', 0) }} findings; {{ r.quality.get('samples_medium_plus', 0) }} samples with medium/high severity.
+     <span class="note">{{ r.quality.get('by_type', {}) }}</span></p>
+  <h3>Duplicates</h3>
+  <p>{{ r.duplicates.get('families', 0) }} families, {{ r.duplicates.get('redundant_samples', 0) }} redundant samples.
+     <span class="note">Relations: {{ r.duplicates.get('relations', {}) }}</span></p>
+  <h3>Train / validation / test leakage</h3>
+  <p>By risk: {{ r.leakage.by_risk }} · {{ r.facts.eval_samples_leaking }} evaluation samples affected ({{ r.facts.exact_eval_leaks }} byte-identical).</p>
+  <h3>Label forensics</h3>
+  <p>Recommended actions: {{ r.labels.get('actions', {}) }}. Rare-or-wrong hypotheses: {{ r.labels.get('rare_or_wrong', {}) }}.
+     <span class="note">Suspicion scores are evidence scores, not probabilities. Witness reliability on this dataset: {{ r.labels.get('witness_reliability', {}) }}.</span></p>
+  {% if r.baseline %}<h3>Baseline model (proxy)</h3>
+  <p>Cross-validated: {{ r.baseline.get('cross_validation') }}<br>Evaluation: {{ r.baseline.get('eval') }}</p>{% endif %}
+  <h3>Shortcut cues</h3>
+  {% if r.shortcuts %}<table><tr><th>Cue</th><th>Class</th><th>Strength</th><th>Consequence</th></tr>
+    {% for x in r.shortcuts %}<tr><td>{{ x.cue }} = {{ x.value }}</td><td>{{ x.class }}</td><td>{{ x.label }} ({{ x.strength|round(3) }})</td><td>{{ x.consequence }}</td></tr>{% endfor %}</table>
+  {% else %}<p class="note">No moderate or strong cue–label associations found.</p>{% endif %}
+  <h3>Coverage & collection plan</h3>
+  {% if r.gaps %}<table><tr><th>Recommendation</th><th>Priority</th><th>Suggested quantity</th></tr>
+    {% for g in r.gaps %}<tr><td>{{ g.title }}<div class="note">{{ g.description }}</div></td><td>{{ g.priority }}</td><td>{{ g.quantity }}</td></tr>{% endfor %}</table>
+  {% else %}<p class="note">No coverage gaps above thresholds.</p>{% endif %}
+
+  <h2>4. Dataset Debt</h2>
+  <table><tr><th>Dimension</th><th>Level</th><th>Value</th><th>Formula</th></tr>
+    {% for key, d in r.debt_live.dimensions.items() %}
+    <tr><td>{{ d.name }}{% if not d.included_in_overall %} <span class="note">(tracked)</span>{% endif %}</td><td><span class="pill {{ d.level }}">{{ d.level }}</span></td><td>{{ d.value }}</td><td class="note">{{ d.formula }}</td></tr>
+    {% endfor %}</table>
+  <p class="note">{{ r.debt_live.overall_rule }}</p>
+
+  <h2>5. Human review</h2>
+  <p>Decisions: {{ r.review.decisions or 'none yet' }} · adjudications: {{ r.review.adjudications }}.
+     {% if r.review.agreement.get('cohens_kappa') is not none %}Inter-reviewer agreement: {{ (r.review.agreement.percent_agreement * 100)|round(1) }}% (Cohen's κ {{ r.review.agreement.cohens_kappa }}).{% endif %}</p>
+
+  <h2>6. What-if experiments</h2>
+  {% if r.what_if %}{% for w in r.what_if %}
+    <h3>{{ w.name }}</h3>
+    <table><tr><th>Evaluation set</th><th>Macro F1 before</th><th>after</th><th>Δ</th></tr>
+    {% for name, d in w.summary.deltas.items() %}<tr><td>{{ name|replace('_',' ') }}</td><td>{{ d.macro_f1.before }}</td><td>{{ d.macro_f1.after }}</td><td>{{ d.macro_f1.delta }}{% if d.macro_f1.within_noise %} <span class="note">(within training-bootstrap noise)</span>{% endif %}</td></tr>{% endfor %}
+    </table>
+    {% if w.summary.preserved_holdout_ci %}<p class="note">Preserved-holdout macro-F1 Δ 95% CI {{ w.summary.preserved_holdout_ci.ci95 }} ({{ w.summary.preserved_holdout_ci.resamples }} paired bootstrap resamples). {{ w.summary.label }}</p>{% endif %}
+  {% endfor %}{% else %}<p class="note">No completed experiments.</p>{% endif %}
+
+  <h2>7. Preflight & data contract</h2>
+  {% if r.preflight %}<p>Status: <span class="pill {{ r.preflight.status }}">{{ r.preflight.status|replace('_',' ') }}</span>
+    {% if r.preflight.override %} · overridden ({{ r.preflight.override }}): {{ r.preflight.override_reason }}{% endif %}</p>
+  <table>{% for c in r.preflight.checks %}<tr><td>{{ c.title }}</td><td><span class="pill {{ c.status }}">{{ c.status }}</span></td><td class="note">{{ c.message }}</td></tr>{% endfor %}</table>{% endif %}
+  {% if r.contract %}<p>Data contract: {{ 'PASSED' if r.contract.passed else 'FAILED' }}</p>
+  <table>{% for x in r.contract.results %}<tr><td>{{ x.title }}</td><td>{{ x.op }} {{ x.expected }}</td><td>actual {{ x.actual }}</td><td>{{ 'pass' if x.passed else 'fail' }}</td></tr>{% endfor %}</table>{% endif %}
+
+  <h2>8. Limitations</h2>
+  <ul class="lim">{% for l in r.limitations %}<li>{{ l }}</li>{% endfor %}</ul>
+  <p class="note">Audit {{ r.audit.id }} · Report generated by DataCourt AI. This is a technical audit aid, not a legal or compliance certification.</p>
+</main>
+</body>
+</html>

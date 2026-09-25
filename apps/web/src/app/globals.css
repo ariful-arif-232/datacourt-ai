@@ -1,0 +1,359 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   DataCourt design tokens. Editorial, technical, calm: warm paper neutrals,
+   one ink-blue accent, muted semantic colours. Every status also carries an
+   icon or text label — colour is never the only signal.
+   --------------------------------------------------------------------------- */
+
+:root {
+  --bg: #f6f5f1;
+  --surface: #ffffff;
+  --surface-2: #f0eee8;
+  --surface-3: #e8e5dc;
+  --border: #e1ddd3;
+  --border-strong: #cbc6ba;
+  --ink: #15171b;
+  --muted: #595e6b;
+  --subtle: #868b96;
+  --accent: #2b4a80;
+  --accent-ink: #ffffff;
+  --accent-soft: #e5ebf5;
+  --ok: #2b6a4c;
+  --ok-soft: #e3f0e8;
+  --warn: #8f6200;
+  --warn-soft: #f7eed8;
+  --bad: #a12f2b;
+  --bad-soft: #f7e3e1;
+  --info: #3a5a8e;
+  --info-soft: #e5ebf5;
+  /* evidence kinds */
+  --k-measured: #365f8c;
+  --k-heuristic: #8a6a14;
+  --k-prediction: #5d4b8f;
+  --k-estimate: #2c6e68;
+  --k-llm: #9a3f63;
+  --k-human: #2b6a4c;
+  --shadow: 0 1px 2px rgba(21, 23, 27, 0.04), 0 4px 16px rgba(21, 23, 27, 0.04);
+  --radius: 10px;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #4a3aa7;
+  --series-8: #e34948;
+  --series-other: #9a978f;
+  --seq-100: #cde2fb;
+  --seq-300: #6da7ec;
+  --seq-500: #256abf;
+  --seq-700: #0d366b;
+  --grid: #e8e5dc;
+  --axis: #c3c2b7;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1114;
+    --surface: #16191e;
+    --surface-2: #1c2026;
+    --surface-3: #242931;
+    --border: #2a2f37;
+    --border-strong: #3a414c;
+    --ink: #eceae4;
+    --muted: #a9adb6;
+    --subtle: #7b808b;
+    --accent: #8fb0e8;
+    --accent-ink: #0f1114;
+    --accent-soft: #1d2940;
+    --ok: #79c29c;
+    --ok-soft: #173024;
+    --warn: #e0b45a;
+    --warn-soft: #33290f;
+    --bad: #ef8a84;
+    --bad-soft: #3a1b1a;
+    --info: #9bb6e6;
+    --info-soft: #1d2940;
+    --k-measured: #8db3e0;
+    --k-heuristic: #dcbc62;
+    --k-prediction: #b9a6ef;
+    --k-estimate: #7fcdc3;
+    --k-llm: #ec9dbd;
+    --k-human: #79c29c;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.25);
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --series-6: #008300;
+    --series-7: #9085e9;
+    --series-8: #e66767;
+    --series-other: #6f6c66;
+    --seq-100: #184f95;
+    --seq-300: #256abf;
+    --seq-500: #5598e7;
+    --seq-700: #b7d3f6;
+    --grid: #2a2f37;
+    --axis: #3a414c;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0f1114;
+  --surface: #16191e;
+  --surface-2: #1c2026;
+  --surface-3: #242931;
+  --border: #2a2f37;
+  --border-strong: #3a414c;
+  --ink: #eceae4;
+  --muted: #a9adb6;
+  --subtle: #7b808b;
+  --accent: #8fb0e8;
+  --accent-ink: #0f1114;
+  --accent-soft: #1d2940;
+  --ok: #79c29c;
+  --ok-soft: #173024;
+  --warn: #e0b45a;
+  --warn-soft: #33290f;
+  --bad: #ef8a84;
+  --bad-soft: #3a1b1a;
+  --info: #9bb6e6;
+  --info-soft: #1d2940;
+  --k-measured: #8db3e0;
+  --k-heuristic: #dcbc62;
+  --k-prediction: #b9a6ef;
+  --k-estimate: #7fcdc3;
+  --k-llm: #ec9dbd;
+  --k-human: #79c29c;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+  --series-other: #6f6c66;
+  --seq-100: #184f95;
+  --seq-300: #256abf;
+  --seq-500: #5598e7;
+  --seq-700: #b7d3f6;
+  --grid: #2a2f37;
+  --axis: #3a414c;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.font-display {
+  font-family: var(--font-serif);
+  letter-spacing: -0.012em;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.hairline {
+  border-color: var(--border);
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 37%, var(--surface-2) 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: 6px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+.thumb-checker {
+  background-color: var(--surface-2);
+  background-image: linear-gradient(45deg, var(--surface-3) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--surface-3) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--surface-3) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--surface-3) 75%);
+  background-size: 12px 12px;
+  background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+}
+
+.prose-dc h2 {
+  font-family: var(--font-serif);
+  font-size: 1.45rem;
+  margin: 2rem 0 0.75rem;
+}
+.prose-dc h3 {
+  font-weight: 600;
+  margin: 1.5rem 0 0.5rem;
+}
+.prose-dc p,
+.prose-dc li {
+  color: var(--muted);
+  line-height: 1.7;
+}
+.prose-dc ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin: 0.5rem 0 1rem;
+}
+.prose-dc code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--surface-2);
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+}
+.prose-dc pre {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+  margin: 0.75rem 0 1.25rem;
+}
+.prose-dc table {
+  width: 100%;
+  font-size: 0.875rem;
+  margin: 0.75rem 0 1.25rem;
+  border-collapse: collapse;
+}
+.prose-dc th,
+.prose-dc td {
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+.prose-dc th {
+  color: var(--subtle);
+  font-weight: 500;
+}
+
+/* Long-form docs (rendered markdown) */
+.prose-dc > p:first-child {
+  margin-top: 0;
+}
+.prose-dc p {
+  margin: 0.6rem 0 0.9rem;
+}
+.prose-dc ol {
+  list-style: decimal;
+  padding-left: 1.4rem;
+  margin: 0.5rem 0 1rem;
+}
+.prose-dc li + li {
+  margin-top: 0.25rem;
+}
+.prose-dc a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-dc h2 a.anchor,
+.prose-dc h3 a.anchor {
+  color: inherit;
+  text-decoration: none;
+}
+.prose-dc h2,
+.prose-dc h3 {
+  scroll-margin-top: 5rem;
+}
+.prose-dc strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+.prose-dc blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 8px 8px 0;
+  padding: 0.6rem 1rem;
+  margin: 1rem 0;
+}
+.prose-dc blockquote p {
+  margin: 0.2rem 0;
+  color: var(--ink);
+}
+.prose-dc pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+.prose-dc .table-wrap {
+  overflow-x: auto;
+  margin: 0.75rem 0 1.25rem;
+}
+.prose-dc .table-wrap table {
+  margin: 0;
+}
+.prose-dc td {
+  color: var(--muted);
+  vertical-align: top;
+}
