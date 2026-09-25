@@ -6,7 +6,7 @@ name: Database migrations
 
 on:
   push:
-    branches: [main, claude/modest-euler-i9kz7n]
+    branches: [main]
     paths:
       - services/api/datacourt/migrations/**
       - services/api/datacourt/db/models.py
